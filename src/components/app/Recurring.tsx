@@ -38,18 +38,14 @@ function NewCategoryInline({
   const { add } = useCategories()
   const [form, setForm] = useState({ label: '', icon: '', color: PRESET_COLORS[0] })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handleCreate = () => {
+    if (!form.label || !form.icon) return
     const newId = add(form)
     onCreated(newId)
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mt-3 rounded-md border border-primary/30 bg-muted/40 p-3 space-y-3"
-    >
+    <div className="mt-3 rounded-md border border-primary/30 bg-muted/40 p-3 space-y-3">
       <p className="text-xs font-semibold text-primary">Nueva categoría</p>
 
       <div className="grid grid-cols-2 gap-2">
@@ -60,7 +56,6 @@ function NewCategoryInline({
             value={form.label}
             onChange={(e) => setForm({ ...form, label: e.target.value })}
             className="h-8 text-xs"
-            required
           />
         </div>
         <div className="space-y-1">
@@ -96,9 +91,16 @@ function NewCategoryInline({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" size="sm">Crear y seleccionar</Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!form.label || !form.icon}
+          onClick={handleCreate}
+        >
+          Crear y seleccionar
+        </Button>
       </div>
-    </form>
+    </div>
   )
 }
 
