@@ -1,0 +1,93 @@
+import { useState } from 'react'
+import { Navigate } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import Dashboard    from '@/components/app/Dashboard'
+import BudgetVsReal from '@/components/app/BudgetVsReal'
+import ExpenseList  from '@/components/app/ExpenseList'
+import Recurring    from '@/components/app/Recurring'
+import Projection   from '@/components/app/Projection'
+import ExpenseForm  from '@/components/app/ExpenseForm'
+
+export default function AppPage() {
+  const [session, setSession]       = useState<boolean | null>(null)
+  const [showForm, setShowForm]     = useState(false)
+
+  supabase.auth.getSession().then(({ data }) => {
+    setSession(!!data.session)
+  })
+
+  if (session === false) {
+    return <Navigate to="/login" replace />
+  }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b border-border bg-card px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xl font-bold text-primary">FinanzasPro</span>
+          <span className="text-muted-foreground text-sm hidden sm:inline">· Marzo 2026</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            + Nuevo gasto
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleSignOut}>
+            Salir
+          </Button>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
+        {/* Expense Form modal */}
+        {showForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <Card className="w-full max-w-lg">
+              <CardHeader>
+                <CardTitle>Nuevo gasto</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ExpenseForm onClose={() => setShowForm(false)} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <Tabs defaultValue="dashboard">
+          <TabsList className="mb-6 flex h-auto flex-wrap gap-1 bg-muted p-1 sm:w-auto">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="budget">Pres. vs Real</TabsTrigger>
+            <TabsTrigger value="expenses">Gastos</TabsTrigger>
+            <TabsTrigger value="recurring">Recurrentes</TabsTrigger>
+            <TabsTrigger value="projection">Proyección</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard">
+            <Dashboard />
+          </TabsContent>
+          <TabsContent value="budget">
+            <BudgetVsReal />
+          </TabsContent>
+          <TabsContent value="expenses">
+            <ExpenseList />
+          </TabsContent>
+          <TabsContent value="recurring">
+            <Recurring />
+          </TabsContent>
+          <TabsContent value="projection">
+            <Projection />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  )
+}
