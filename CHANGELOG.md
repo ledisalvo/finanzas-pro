@@ -5,6 +5,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.2.0] — 2026-03-05
+
+### Agregado
+- `Recurring.tsx` — formulario inline para agregar nuevos gastos recurrentes
+- `Recurring.tsx` — acciones de editar y eliminar por ítem (visibles al hacer hover)
+- `useRecurring.ts` — métodos `add`, `update`, `remove` con estado local (pendiente conexión a Supabase)
+
+---
+
 ## [0.1.0] — 2026-03-05
 
 ### Agregado
