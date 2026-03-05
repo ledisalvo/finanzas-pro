@@ -5,6 +5,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.7.0] — 2026-03-05
+
+### Agregado
+- `src/context/AuthContext.tsx` — `AuthProvider` + `useAuth()`: `userId` y `loading` via `onAuthStateChange` + `getSession`
+- `src/context/RecurringContext.tsx` — contexto Supabase-connected para gastos recurrentes (antes era hook local); expone `add`, `update`, `remove` con optimistic updates
+- `src/context/BudgetsContext.tsx` — contexto Supabase-connected para presupuestos; expone `upsert` y `remove`
+- `src/main.tsx` — `AuthProvider` envuelve la app completa
+
+### Modificado
+- `LoginPage.tsx` — usa `useAuth()` en lugar de `getSession` en render body; elimina re-renders infinitos
+- `AppPage.tsx` — usa `useAuth()` para auth guard; agrega `RecurringProvider` y `BudgetsProvider`; elimina `useState` de sesión manual
+- `ExpensesContext.tsx` — conectado a Supabase: fetch real con `useEffect`, CRUD con optimistic updates y rollback en error
+- `IncomesContext.tsx` — ídem, tabla `incomes`
+- `GoalsContext.tsx` — ídem, tabla `budget_goals`
+- `hooks/useRecurring.ts` — re-exporta desde `RecurringContext` (sin cambio de API para los consumidores)
+- `hooks/useBudgets.ts` — re-exporta desde `BudgetsContext`
+
+---
+
 ## [0.6.0] — 2026-03-05
 
 ### Agregado

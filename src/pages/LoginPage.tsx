@@ -1,32 +1,27 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
+  const { userId, loading } = useAuth()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [isLogin, setIsLogin]   = useState(true)
   const [message, setMessage]   = useState<string | null>(null)
 
-  // Check if already authenticated
-  const [currentSession, setCurrentSession] = useState<boolean | null>(null)
-  supabase.auth.getSession().then(({ data }) => {
-    setCurrentSession(!!data.session)
-  })
-
-  if (currentSession) {
-    return <Navigate to="/app" replace />
-  }
+  if (loading) return null
+  if (userId)  return <Navigate to="/app" replace />
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    setSubmitting(true)
     setError(null)
     setMessage(null)
 
@@ -43,7 +38,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error inesperado')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -98,8 +93,8 @@ export default function LoginPage() {
                 <p className="text-sm text-green-400">{message}</p>
               )}
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Cargando...' : isLogin ? 'Ingresar' : 'Registrarse'}
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? 'Cargando...' : isLogin ? 'Ingresar' : 'Registrarse'}
               </Button>
             </form>
 

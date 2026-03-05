@@ -1,48 +1,88 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import type { Expense } from '@/types'
-
-const MOCK_EXPENSES: Expense[] = [
-  { id: '1', user_id: 'mock-user', date: '2026-03-01', category: 'comida',      description: 'Almuerzo trabajo', amount: 1500,  recurring: false, created_at: '2026-03-01T12:00:00Z' },
-  { id: '2', user_id: 'mock-user', date: '2026-03-02', category: 'viaticos',    description: 'Nafta',            amount: 8000,  recurring: false, created_at: '2026-03-02T09:00:00Z' },
-  { id: '3', user_id: 'mock-user', date: '2026-03-03', category: 'servicios',   description: 'Internet',         amount: 4500,  recurring: true,  created_at: '2026-03-03T08:00:00Z' },
-  { id: '4', user_id: 'mock-user', date: '2026-03-04', category: 'ocio',        description: 'Streaming',        amount: 2200,  recurring: true,  created_at: '2026-03-04T20:00:00Z' },
-  { id: '5', user_id: 'mock-user', date: '2026-03-05', category: 'personal',    description: 'Ropa',             amount: 12000, recurring: false, created_at: '2026-03-05T15:00:00Z' },
-]
 
 interface ExpensesContextValue {
   data:    Expense[]
   loading: boolean
   error:   Error | null
-  add:    (item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) => void
-  update: (id: string, changes: Partial<Omit<Expense, 'id' | 'user_id' | 'created_at'>>) => void
-  remove: (id: string) => void
+  add:    (item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) => Promise<void>
+  update: (id: string, changes: Partial<Omit<Expense, 'id' | 'user_id' | 'created_at'>>) => Promise<void>
+  remove: (id: string) => Promise<void>
 }
 
 const ExpensesContext = createContext<ExpensesContextValue | null>(null)
 
 export function ExpensesProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<Expense[]>(MOCK_EXPENSES)
+  const { userId } = useAuth()
+  const [data, setData]       = useState<Expense[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<Error | null>(null)
 
-  function add(item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) {
-    // TODO: reemplazar por insert a Supabase en la próxima sesión
-    setData((prev) => [
-      ...prev,
-      { ...item, id: crypto.randomUUID(), user_id: 'mock-user', created_at: new Date().toISOString() },
-    ])
+  useEffect(() => {
+    if (!userId) { setData([]); setLoading(false); return }
+
+    setLoading(true)
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .then(({ data: rows, error: err }) => {
+        if (err) setError(new Error(err.message))
+        else setData(rows ?? [])
+        setLoading(false)
+      })
+  }, [userId])
+
+  async function add(item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) {
+    const optimistic: Expense = {
+      ...item,
+      id: crypto.randomUUID(),
+      user_id: userId!,
+      created_at: new Date().toISOString(),
+    }
+    setData((prev) => [optimistic, ...prev])
+
+    const { data: inserted, error: err } = await supabase
+      .from('expenses')
+      .insert({ ...item, user_id: userId })
+      .select()
+      .single()
+
+    if (err) {
+      setData((prev) => prev.filter((e) => e.id !== optimistic.id))
+      setError(new Error(err.message))
+    } else {
+      setData((prev) => prev.map((e) => (e.id === optimistic.id ? inserted : e)))
+    }
   }
 
-  function update(id: string, changes: Partial<Omit<Expense, 'id' | 'user_id' | 'created_at'>>) {
-    // TODO: reemplazar por update a Supabase en la próxima sesión
+  async function update(id: string, changes: Partial<Omit<Expense, 'id' | 'user_id' | 'created_at'>>) {
+    const snapshot = data
     setData((prev) => prev.map((e) => (e.id === id ? { ...e, ...changes } : e)))
+
+    const { error: err } = await supabase.from('expenses').update(changes).eq('id', id)
+    if (err) {
+      setData(snapshot)
+      setError(new Error(err.message))
+    }
   }
 
-  function remove(id: string) {
-    // TODO: reemplazar por delete a Supabase en la próxima sesión
+  async function remove(id: string) {
+    const snapshot = data
     setData((prev) => prev.filter((e) => e.id !== id))
+
+    const { error: err } = await supabase.from('expenses').delete().eq('id', id)
+    if (err) {
+      setData(snapshot)
+      setError(new Error(err.message))
+    }
   }
 
   return (
-    <ExpensesContext.Provider value={{ data, loading: false, error: null, add, update, remove }}>
+    <ExpensesContext.Provider value={{ data, loading, error, add, update, remove }}>
       {children}
     </ExpensesContext.Provider>
   )
