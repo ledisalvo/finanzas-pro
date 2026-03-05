@@ -40,6 +40,7 @@ function NewCategoryInline({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     const newId = add(form)
     onCreated(newId)
   }
