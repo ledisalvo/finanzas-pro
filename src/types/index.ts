@@ -28,6 +28,25 @@ export interface Recurring {
   day_of_month: number
 }
 
+export interface Income {
+  id: string
+  user_id: string
+  description: string
+  amount: number
+  day_of_month: number
+}
+
+export interface BudgetGoal {
+  id: string
+  user_id: string
+  name: string
+  icon: string
+  color: string
+  monthly_amount: number
+  target_amount: number | null  // null = sin meta fija
+  current_amount: number        // acumulado actual (manual por ahora)
+}
+
 // ─── Category ─────────────────────────────────────────────────────────────────
 
 export interface Category {

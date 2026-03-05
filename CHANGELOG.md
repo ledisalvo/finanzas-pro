@@ -5,6 +5,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.6.0] — 2026-03-05
+
+### Agregado
+- `Income` y `BudgetGoal` en `src/types/index.ts`
+- `IncomesContext` + `useIncomes` — CRUD de fuentes de ingreso fijo
+- `GoalsContext` + `useGoals` — CRUD de objetivos con aporte mensual, meta opcional y acumulado
+- `Incomes.tsx` — tab "Ingresos": lista CRUD de fuentes de ingreso, total mensual en verde
+- `Goals.tsx` — tab "Objetivos": barra de progreso por objetivo con meta, estimación de meses, badge de aporte mensual, checkbox para activar meta
+- `supabase/schema.sql` — tablas `incomes` y `budget_goals` con RLS
+
+### Modificado
+- `Dashboard.tsx` — nueva sección "Objetivos de ahorro" con barras de progreso para metas con tope
+- `Projection.tsx` — reescritura completa: balance `Ingresos − Fijos − Objetivos = Libre`, gráfico de barras apiladas (6 meses), tabla mes a mes, sección de estimación de fechas de meta
+- `AppPage.tsx` — 2 tabs nuevas (Ingresos, Objetivos), 2 providers (`IncomesProvider`, `GoalsProvider`)
+
+---
+
 ## [0.5.0] — 2026-03-05
 
 ### Agregado
