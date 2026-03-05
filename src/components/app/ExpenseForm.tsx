@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CATEGORIES } from '@/types'
+import { useCategories } from '@/context/CategoriesContext'
 
 interface ExpenseFormProps {
   onClose?: () => void
 }
 
 export default function ExpenseForm({ onClose }: ExpenseFormProps) {
+  const { categories } = useCategories()
   const [form, setForm] = useState({
     date:        new Date().toISOString().slice(0, 10),
     category:    'comida',
@@ -67,7 +68,7 @@ export default function ExpenseForm({ onClose }: ExpenseFormProps) {
       <div className="space-y-1.5">
         <Label>Categoría</Label>
         <div className="grid grid-cols-3 gap-2">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               type="button"

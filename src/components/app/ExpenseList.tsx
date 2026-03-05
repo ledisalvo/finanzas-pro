@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useExpenses } from '@/hooks/useExpenses'
-import { CATEGORIES, CATEGORY_MAP } from '@/types'
+import { useCategories } from '@/context/CategoriesContext'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
@@ -10,6 +10,7 @@ function formatCurrency(value: number) {
 
 export default function ExpenseList() {
   const { data: expenses } = useExpenses()
+  const { categories, categoryMap } = useCategories()
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
   const filtered = useMemo(() => {
@@ -36,7 +37,7 @@ export default function ExpenseList() {
         >
           Todos
         </button>
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setFilterCategory(cat.id)}
@@ -57,7 +58,7 @@ export default function ExpenseList() {
         </CardHeader>
         <CardContent className="space-y-1">
           {sorted.map((exp) => {
-            const cat = CATEGORY_MAP[exp.category]
+            const cat = categoryMap[exp.category]
             return (
               <div
                 key={exp.id}

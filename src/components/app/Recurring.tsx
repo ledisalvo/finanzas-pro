@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRecurring } from '@/hooks/useRecurring'
-import { CATEGORIES, CATEGORY_MAP, type Recurring } from '@/types'
+import { useCategories } from '@/context/CategoriesContext'
+import type { Recurring } from '@/types'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
@@ -28,6 +29,7 @@ function RecurringForm({
   onSave: (values: FormState) => void
   onCancel: () => void
 }) {
+  const { categories } = useCategories()
   const [form, setForm] = useState<FormState>(initial ?? EMPTY_FORM)
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -81,7 +83,7 @@ function RecurringForm({
       <div className="space-y-1.5">
         <Label>Categoría</Label>
         <div className="grid grid-cols-3 gap-2">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               type="button"
@@ -111,6 +113,7 @@ function RecurringForm({
 
 export default function Recurring() {
   const { data: recurring, add, update, remove } = useRecurring()
+  const { categoryMap } = useCategories()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Recurring | null>(null)
 
@@ -177,7 +180,7 @@ export default function Recurring() {
           )}
 
           {sorted.map((item) => {
-            const cat = CATEGORY_MAP[item.category]
+            const cat = categoryMap[item.category]
             const isEditing = editing?.id === item.id
 
             if (isEditing) {

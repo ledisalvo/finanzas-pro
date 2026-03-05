@@ -5,7 +5,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useBudgets } from '@/hooks/useBudgets'
-import { CATEGORIES } from '@/types'
+import { useCategories } from '@/context/CategoriesContext'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
@@ -14,13 +14,14 @@ function formatCurrency(value: number) {
 export default function BudgetVsReal() {
   const { data: expenses } = useExpenses()
   const { data: budgets } = useBudgets()
+  const { categories } = useCategories()
 
   const chartData = useMemo(() => {
     const spentMap: Record<string, number> = {}
     expenses.forEach((e) => {
       spentMap[e.category] = (spentMap[e.category] ?? 0) + e.amount
     })
-    return CATEGORIES.map((cat) => {
+    return categories.map((cat) => {
       const budget = budgets.find((b) => b.category === cat.id)
       const presupuesto = budget?.amount ?? 0
       const real = spentMap[cat.id] ?? 0
@@ -31,7 +32,7 @@ export default function BudgetVsReal() {
         color: cat.color,
       }
     })
-  }, [expenses, budgets])
+  }, [expenses, budgets, categories])
 
   return (
     <div className="space-y-6">

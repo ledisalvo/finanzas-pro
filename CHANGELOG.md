@@ -5,6 +5,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.3.0] — 2026-03-05
+
+### Agregado
+- `src/context/CategoriesContext.tsx` — React Context con estado mutable de categorías; expone `categories`, `categoryMap`, `add`, `update`, `remove`
+- `src/components/app/Categories.tsx` — tab de gestión de categorías: crear, editar nombre/ícono/color, eliminar; selector de colores preset + color personalizado; vista previa en tiempo real
+- `AppPage.tsx` — nueva tab "Categorías" y `CategoriesProvider` envolviendo el layout
+
+### Modificado
+- `Dashboard`, `BudgetVsReal`, `ExpenseList`, `ExpenseForm`, `Recurring` — reemplazadas las importaciones estáticas `CATEGORIES`/`CATEGORY_MAP` por `useCategories()` del contexto; los componentes ahora reflejan cambios de categorías en tiempo real
+
+---
+
 ## [0.2.0] — 2026-03-05
 
 ### Agregado

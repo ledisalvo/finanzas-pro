@@ -5,7 +5,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useBudgets } from '@/hooks/useBudgets'
-import { CATEGORIES, CATEGORY_MAP } from '@/types'
+import { useCategories } from '@/context/CategoriesContext'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
@@ -14,6 +14,7 @@ function formatCurrency(value: number) {
 export default function Dashboard() {
   const { data: expenses } = useExpenses()
   const { data: budgets } = useBudgets()
+  const { categories, categoryMap } = useCategories()
 
   const totalGastado = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
@@ -30,12 +31,12 @@ export default function Dashboard() {
     expenses.forEach((e) => {
       map[e.category] = (map[e.category] ?? 0) + e.amount
     })
-    return CATEGORIES.map((cat) => ({
+    return categories.map((cat) => ({
       name: cat.label,
       gasto: map[cat.id] ?? 0,
       color: cat.color,
     }))
-  }, [expenses])
+  }, [expenses, categories])
 
   const pct = totalPresupuesto > 0
     ? Math.min(100, Math.round((totalGastado / totalPresupuesto) * 100))
@@ -126,7 +127,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="space-y-2">
           {expenses.slice(-5).reverse().map((exp) => {
-            const cat = CATEGORY_MAP[exp.category]
+            const cat = categoryMap[exp.category]
             return (
               <div key={exp.id} className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-3">
