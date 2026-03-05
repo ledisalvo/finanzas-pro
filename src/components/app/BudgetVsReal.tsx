@@ -6,23 +6,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useBudgets } from '@/hooks/useBudgets'
 import { useCategories } from '@/context/CategoriesContext'
+import { useMonth } from '@/context/MonthContext'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
 }
 
 export default function BudgetVsReal() {
+  const { month }          = useMonth()
   const { data: expenses } = useExpenses()
-  const { data: budgets } = useBudgets()
-  const { categories } = useCategories()
+  const { data: budgets }  = useBudgets()
+  const { categories }     = useCategories()
 
   const chartData = useMemo(() => {
     const spentMap: Record<string, number> = {}
-    expenses.forEach((e) => {
-      spentMap[e.category] = (spentMap[e.category] ?? 0) + e.amount
-    })
+    expenses
+      .filter((e) => e.date.startsWith(month))
+      .forEach((e) => { spentMap[e.category] = (spentMap[e.category] ?? 0) + e.amount })
     return categories.map((cat) => {
-      const budget = budgets.find((b) => b.category === cat.id)
+      const budget = budgets.find((b) => b.category === cat.id && b.month === month)
       const presupuesto = budget?.amount ?? 0
       const real = spentMap[cat.id] ?? 0
       return {

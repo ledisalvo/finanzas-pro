@@ -5,25 +5,33 @@ import { useExpenses } from '@/hooks/useExpenses'
 import { useBudgets } from '@/hooks/useBudgets'
 import { useCategories } from '@/context/CategoriesContext'
 import { useGoals } from '@/hooks/useGoals'
+import { useRecurring } from '@/hooks/useRecurring'
+import { useMonth } from '@/context/MonthContext'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
 }
 
 export default function Dashboard() {
+  const { month }           = useMonth()
   const { data: expenses }  = useExpenses()
   const { data: budgets }   = useBudgets()
   const { data: goals }     = useGoals()
+  const { data: recurring } = useRecurring()
   const { categories, categoryMap } = useCategories()
 
-  const totalGastado = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses])
-  const totalPresupuesto = useMemo(() => budgets.reduce((sum, b) => sum + b.amount, 0), [budgets])
+  const monthExpenses    = useMemo(() => expenses.filter((e) => e.date.startsWith(month)), [expenses, month])
+  const monthBudgets     = useMemo(() => budgets.filter((b) => b.month === month), [budgets, month])
+
+  const totalGastado     = useMemo(() => monthExpenses.reduce((sum, e) => sum + e.amount, 0), [monthExpenses])
+  const totalPresupuesto = useMemo(() => monthBudgets.reduce((sum, b) => sum + b.amount, 0), [monthBudgets])
+  const totalFijos       = useMemo(() => recurring.reduce((sum, r) => sum + r.amount, 0), [recurring])
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {}
-    expenses.forEach((e) => { map[e.category] = (map[e.category] ?? 0) + e.amount })
+    monthExpenses.forEach((e) => { map[e.category] = (map[e.category] ?? 0) + e.amount })
     return categories.map((cat) => ({ name: cat.label, gasto: map[cat.id] ?? 0, color: cat.color }))
-  }, [expenses, categories])
+  }, [monthExpenses, categories])
 
   const pct = totalPresupuesto > 0
     ? Math.min(100, Math.round((totalGastado / totalPresupuesto) * 100))
@@ -116,23 +124,42 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {/* Gastos fijos del mes */}
+      {totalFijos > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Gastos fijos del mes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-yellow-400">{formatCurrency(totalFijos)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{recurring.length} concepto{recurring.length !== 1 ? 's' : ''} recurrente{recurring.length !== 1 ? 's' : ''}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bar chart by category */}
       <Card>
         <CardHeader>
           <CardTitle>Gasto por categoría</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={byCategory} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
-              <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: 8 }}
-                formatter={(value: number | undefined) => [formatCurrency(value ?? 0), 'Gasto']} />
-              <Bar dataKey="gasto" radius={[4, 4, 0, 0]}>
-                {byCategory.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {expenses.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground text-sm">
+              Sin gastos registrados. Usá <span className="text-primary font-medium">+ Nuevo gasto</span> para agregar uno.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={byCategory.filter((c) => c.gasto > 0)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: 8 }}
+                  formatter={(value: number | undefined) => [formatCurrency(value ?? 0), 'Gasto']} />
+                <Bar dataKey="gasto" radius={[4, 4, 0, 0]}>
+                  {byCategory.filter((c) => c.gasto > 0).map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -142,21 +169,25 @@ export default function Dashboard() {
           <CardTitle>Últimos gastos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {expenses.slice(-5).reverse().map((exp) => {
-            const cat = categoryMap[exp.category]
-            return (
-              <div key={exp.id} className="flex items-center justify-between py-1">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">{cat?.icon}</span>
-                  <div>
-                    <p className="text-sm font-medium">{exp.description}</p>
-                    <p className="text-xs text-muted-foreground">{exp.date} · {cat?.label}</p>
+          {monthExpenses.length === 0 ? (
+            <p className="py-4 text-center text-muted-foreground text-sm">Sin gastos registrados en este mes.</p>
+          ) : (
+            monthExpenses.slice(0, 5).map((exp) => {
+              const cat = categoryMap[exp.category]
+              return (
+                <div key={exp.id} className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{cat?.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium">{exp.description}</p>
+                      <p className="text-xs text-muted-foreground">{exp.date} · {cat?.label}</p>
+                    </div>
                   </div>
+                  <p className="font-semibold">{formatCurrency(exp.amount)}</p>
                 </div>
-                <p className="font-semibold">{formatCurrency(exp.amount)}</p>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </CardContent>
       </Card>
     </div>

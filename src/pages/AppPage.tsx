@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { MonthProvider, useMonth } from '@/context/MonthContext'
 import { CategoriesProvider } from '@/context/CategoriesContext'
 import { ExpensesProvider }   from '@/context/ExpensesContext'
 import { IncomesProvider }    from '@/context/IncomesContext'
@@ -22,6 +23,17 @@ import Incomes      from '@/components/app/Incomes'
 import Goals        from '@/components/app/Goals'
 import type { Expense } from '@/types'
 
+function MonthSelector() {
+  const { label, prev, next } = useMonth()
+  return (
+    <div className="flex items-center gap-1">
+      <button onClick={prev} className="rounded px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-sm">‹</button>
+      <span className="text-muted-foreground text-sm min-w-[110px] text-center">{label}</span>
+      <button onClick={next} className="rounded px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-sm">›</button>
+    </div>
+  )
+}
+
 export default function AppPage() {
   const { userId, loading } = useAuth()
   const [showForm, setShowForm]            = useState(false)
@@ -40,6 +52,7 @@ export default function AppPage() {
   const closeForm = () => { setShowForm(false); setEditingExpense(null) }
 
   return (
+    <MonthProvider>
     <CategoriesProvider>
       <BudgetsProvider>
         <ExpensesProvider>
@@ -49,9 +62,9 @@ export default function AppPage() {
                 <div className="min-h-screen flex flex-col">
                   {/* Header */}
                   <header className="border-b border-border bg-card px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <span className="text-xl font-bold text-primary">FinanzasPro</span>
-                      <span className="text-muted-foreground text-sm hidden sm:inline">· Marzo 2026</span>
+                      <span className="hidden sm:block"><MonthSelector /></span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" onClick={openNew}>+ Nuevo gasto</Button>
@@ -103,5 +116,6 @@ export default function AppPage() {
         </ExpensesProvider>
       </BudgetsProvider>
     </CategoriesProvider>
+    </MonthProvider>
   )
 }

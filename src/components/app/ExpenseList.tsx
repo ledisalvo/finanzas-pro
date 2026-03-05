@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useCategories } from '@/context/CategoriesContext'
+import { useMonth } from '@/context/MonthContext'
 import type { Expense } from '@/types'
 
 interface ExpenseListProps {
@@ -14,14 +15,16 @@ function formatCurrency(value: number) {
 }
 
 export default function ExpenseList({ onEdit }: ExpenseListProps) {
-  const { data: expenses, remove } = useExpenses()
+  const { month }                   = useMonth()
+  const { data: expenses, remove }  = useExpenses()
   const { categories, categoryMap } = useCategories()
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
   const filtered = useMemo(() => {
-    if (filterCategory === 'all') return expenses
-    return expenses.filter((e) => e.category === filterCategory)
-  }, [expenses, filterCategory])
+    return expenses
+      .filter((e) => e.date.startsWith(month))
+      .filter((e) => filterCategory === 'all' || e.category === filterCategory)
+  }, [expenses, month, filterCategory])
 
   const sorted = useMemo(
     () => [...filtered].sort((a, b) => b.date.localeCompare(a.date)),

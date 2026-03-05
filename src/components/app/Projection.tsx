@@ -15,7 +15,7 @@ const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Se
 
 function getNextMonths(count: number) {
   const result = []
-  const now = new Date('2026-03-01')
+  const now = new Date()
   for (let i = 0; i < count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
     result.push({ label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, short: MONTH_NAMES[d.getMonth()] })
@@ -149,7 +149,7 @@ export default function Projection() {
             {goalsWithTarget.map((goal) => {
               const remaining = goal.target_amount! - goal.current_amount
               const monthsLeft = remaining > 0 ? Math.ceil(remaining / goal.monthly_amount) : 0
-              const targetDate = new Date('2026-03-01')
+              const targetDate = new Date()
               targetDate.setMonth(targetDate.getMonth() + monthsLeft)
               const dateStr = `${MONTH_NAMES[targetDate.getMonth()]} ${targetDate.getFullYear()}`
               return (
