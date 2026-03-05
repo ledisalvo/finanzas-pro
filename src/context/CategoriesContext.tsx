@@ -4,7 +4,7 @@ import { CATEGORIES as DEFAULT_CATEGORIES, type Category } from '@/types'
 interface CategoriesContextValue {
   categories: Category[]
   categoryMap: Record<string, Category>
-  add:    (item: Omit<Category, 'id'>) => void
+  add:    (item: Omit<Category, 'id'>) => string
   update: (id: string, changes: Partial<Omit<Category, 'id'>>) => void
   remove: (id: string) => void
 }
@@ -16,9 +16,10 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
 
   const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c]))
 
-  function add(item: Omit<Category, 'id'>) {
+  function add(item: Omit<Category, 'id'>): string {
     const id = item.label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     setCategories((prev) => [...prev, { ...item, id }])
+    return id
   }
 
   function update(id: string, changes: Partial<Omit<Category, 'id'>>) {

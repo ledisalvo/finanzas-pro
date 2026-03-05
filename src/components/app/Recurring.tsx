@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { EmojiPicker } from '@/components/ui/emoji-picker'
 import { useRecurring } from '@/hooks/useRecurring'
 import { useCategories } from '@/context/CategoriesContext'
 import type { Recurring } from '@/types'
@@ -11,14 +12,96 @@ function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
 }
 
+const PRESET_COLORS = [
+  '#f97316', '#3b82f6', '#8b5cf6', '#ef4444',
+  '#eab308', '#22c55e', '#ec4899', '#14b8a6',
+]
+
 const EMPTY_FORM = {
-  description: '',
-  category: 'servicios',
-  amount: '',
+  description:  '',
+  category:     'servicios',
+  amount:       '',
   day_of_month: '',
 }
 
 type FormState = typeof EMPTY_FORM
+
+// ─── Mini inline category creator ────────────────────────────────────────────
+
+function NewCategoryInline({
+  onCreated,
+  onCancel,
+}: {
+  onCreated: (newId: string) => void
+  onCancel: () => void
+}) {
+  const { add } = useCategories()
+  const [form, setForm] = useState({ label: '', icon: '', color: PRESET_COLORS[0] })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const newId = add(form)
+    onCreated(newId)
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-3 rounded-md border border-primary/30 bg-muted/40 p-3 space-y-3"
+    >
+      <p className="text-xs font-semibold text-primary">Nueva categoría</p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Nombre</Label>
+          <Input
+            placeholder="Ej: Salud"
+            value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })}
+            className="h-8 text-xs"
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Emoji</Label>
+          <EmojiPicker
+            value={form.icon}
+            onChange={(emoji) => setForm({ ...form, icon: emoji })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Color</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {PRESET_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setForm({ ...form, color: c })}
+              className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+              style={{ backgroundColor: c, borderColor: form.color === c ? 'white' : 'transparent' }}
+            />
+          ))}
+          <input
+            type="color"
+            value={form.color}
+            onChange={(e) => setForm({ ...form, color: e.target.value })}
+            className="h-6 w-6 cursor-pointer rounded-full border-0 bg-transparent p-0"
+            title="Color personalizado"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancelar</Button>
+        <Button type="submit" size="sm">Crear y seleccionar</Button>
+      </div>
+    </form>
+  )
+}
+
+// ─── Recurring expense form ───────────────────────────────────────────────────
 
 function RecurringForm({
   initial,
@@ -31,10 +114,16 @@ function RecurringForm({
 }) {
   const { categories } = useCategories()
   const [form, setForm] = useState<FormState>(initial ?? EMPTY_FORM)
+  const [showNewCat, setShowNewCat] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSave(form)
+  }
+
+  const handleCategoryCreated = (newId: string) => {
+    setForm((f) => ({ ...f, category: newId }))
+    setShowNewCat(false)
   }
 
   return (
@@ -81,7 +170,19 @@ function RecurringForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Categoría</Label>
+        <div className="flex items-center justify-between">
+          <Label>Categoría</Label>
+          {!showNewCat && (
+            <button
+              type="button"
+              onClick={() => setShowNewCat(true)}
+              className="text-xs text-primary hover:underline"
+            >
+              + Nueva categoría
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-3 gap-2">
           {categories.map((cat) => (
             <button
@@ -95,10 +196,17 @@ function RecurringForm({
               }`}
             >
               <span>{cat.icon}</span>
-              <span>{cat.label}</span>
+              <span className="truncate">{cat.label}</span>
             </button>
           ))}
         </div>
+
+        {showNewCat && (
+          <NewCategoryInline
+            onCreated={handleCategoryCreated}
+            onCancel={() => setShowNewCat(false)}
+          />
+        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-1">
@@ -110,6 +218,8 @@ function RecurringForm({
     </form>
   )
 }
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Recurring() {
   const { data: recurring, add, update, remove } = useRecurring()
@@ -171,7 +281,6 @@ export default function Recurring() {
           )}
         </CardHeader>
         <CardContent className="space-y-1">
-          {/* New item form */}
           {showForm && (
             <div className="rounded-lg border border-border bg-muted/30 p-4 mb-4">
               <p className="text-sm font-medium mb-2">Nuevo gasto recurrente</p>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useCategories } from '@/context/CategoriesContext'
+import { EmojiPicker } from '@/components/ui/emoji-picker'
 import type { Category } from '@/types'
 
 const PRESET_COLORS = [
@@ -43,13 +44,10 @@ function CategoryForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="cat-icon">Emoji</Label>
-          <Input
-            id="cat-icon"
-            placeholder="Ej: 🏥"
+          <Label>Emoji</Label>
+          <EmojiPicker
             value={form.icon}
-            onChange={(e) => setForm({ ...form, icon: e.target.value })}
-            required
+            onChange={(emoji) => setForm({ ...form, icon: emoji })}
           />
         </div>
       </div>

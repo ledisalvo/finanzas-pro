@@ -5,6 +5,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.4.0] — 2026-03-05
+
+### Agregado
+- `src/components/ui/emoji-picker.tsx` — selector de emojis con dropdown: 10 grupos temáticos (~120 emojis), resaltado del emoji activo, input de texto para emojis personalizados, cierre automático al hacer clic afuera
+- `Recurring.tsx` — botón `+ Nueva categoría` dentro del formulario de recurrente; despliega un mini-form inline (nombre, `EmojiPicker`, colores) que crea la categoría y la selecciona automáticamente sin abandonar la tab
+
+### Modificado
+- `Categories.tsx` — campo de emoji reemplazado por `EmojiPicker`
+- `CategoriesContext` — `add()` ahora devuelve el `id` generado (necesario para auto-seleccionar tras creación inline)
+
+---
+
 ## [0.3.0] — 2026-03-05
 
 ### Agregado
