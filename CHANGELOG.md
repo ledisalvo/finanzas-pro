@@ -5,6 +5,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.5.0] — 2026-03-05
+
+### Agregado
+- `src/context/ExpensesContext.tsx` — contexto compartido para gastos con `add`, `update`, `remove`; mismo patrón que `CategoriesContext`
+- `src/components/app/NewCategoryInline.tsx` — componente extraído y reutilizable para crear una categoría inline sin salir del formulario (usa `div`, no `form`, para evitar nesting inválido)
+- `ExpenseForm.tsx` — soporte de edición con prop `initial?: Expense`; se conecta al contexto (`add`/`update`); incluye `NewCategoryInline`; botón dinámico "Agregar gasto" / "Guardar cambios"
+- `ExpenseList.tsx` — botones Editar y Eliminar por ítem (visibles en hover); emite `onEdit` al padre
+- `AppPage.tsx` — estado `editingExpense`, handlers `openNew`/`openEdit`/`closeForm`; título del modal dinámico; `ExpensesProvider` envuelve el layout
+
+### Modificado
+- `src/hooks/useExpenses.ts` — ahora re-exporta desde `ExpensesContext` (Dashboard y BudgetVsReal no requirieron cambios)
+- `Recurring.tsx` — eliminado `NewCategoryInline` inline; ahora importa el componente extraído
+
+---
+
 ## [0.4.0] — 2026-03-05
 
 ### Agregado

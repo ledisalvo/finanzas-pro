@@ -2,26 +2,44 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useExpenses } from '@/hooks/useExpenses'
 import { useCategories } from '@/context/CategoriesContext'
+import { NewCategoryInline } from '@/components/app/NewCategoryInline'
+import type { Expense } from '@/types'
 
 interface ExpenseFormProps {
+  initial?: Expense
   onClose?: () => void
 }
 
-export default function ExpenseForm({ onClose }: ExpenseFormProps) {
+export default function ExpenseForm({ initial, onClose }: ExpenseFormProps) {
+  const { add, update } = useExpenses()
   const { categories } = useCategories()
+
   const [form, setForm] = useState({
-    date:        new Date().toISOString().slice(0, 10),
-    category:    'comida',
-    description: '',
-    amount:      '',
-    recurring:   false,
+    date:        initial?.date        ?? new Date().toISOString().slice(0, 10),
+    category:    initial?.category    ?? categories[0]?.id ?? '',
+    description: initial?.description ?? '',
+    amount:      initial?.amount      != null ? String(initial.amount) : '',
+    recurring:   initial?.recurring   ?? false,
   })
+
+  const [showNewCat, setShowNewCat] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: conectar a Supabase en la próxima sesión
-    console.log('Nuevo gasto:', form)
+    const payload = {
+      date:        form.date,
+      category:    form.category,
+      description: form.description,
+      amount:      parseFloat(form.amount),
+      recurring:   form.recurring,
+    }
+    if (initial) {
+      update(initial.id, payload)
+    } else {
+      add(payload)
+    }
     onClose?.()
   }
 
@@ -66,7 +84,19 @@ export default function ExpenseForm({ onClose }: ExpenseFormProps) {
       </div>
 
       <div className="space-y-1.5">
-        <Label>Categoría</Label>
+        <div className="flex items-center justify-between">
+          <Label>Categoría</Label>
+          {!showNewCat && (
+            <button
+              type="button"
+              onClick={() => setShowNewCat(true)}
+              className="text-xs text-primary hover:underline"
+            >
+              + Nueva categoría
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-3 gap-2">
           {categories.map((cat) => (
             <button
@@ -80,10 +110,17 @@ export default function ExpenseForm({ onClose }: ExpenseFormProps) {
               }`}
             >
               <span>{cat.icon}</span>
-              <span>{cat.label}</span>
+              <span className="truncate">{cat.label}</span>
             </button>
           ))}
         </div>
+
+        {showNewCat && (
+          <NewCategoryInline
+            onCreated={(newId) => { setForm((f) => ({ ...f, category: newId })); setShowNewCat(false) }}
+            onCancel={() => setShowNewCat(false)}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -103,7 +140,7 @@ export default function ExpenseForm({ onClose }: ExpenseFormProps) {
             Cancelar
           </Button>
         )}
-        <Button type="submit">Guardar gasto</Button>
+        <Button type="submit">{initial ? 'Guardar cambios' : 'Agregar gasto'}</Button>
       </div>
     </form>
   )
