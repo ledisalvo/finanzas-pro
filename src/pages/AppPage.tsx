@@ -13,7 +13,7 @@ import { DebtsProvider }          from '@/context/DebtsContext'
 import { PlannedEventsProvider }  from '@/context/PlannedEventsContext'
 import {
   LayoutDashboard, SlidersHorizontal, Receipt, RefreshCw,
-  TrendingUp, Target, BarChart2, CreditCard, Tag,
+  TrendingUp, Target, BarChart2, CreditCard, Tag, Calendar,
   Wallet, LogOut, Plus, Menu, X, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,23 +27,26 @@ import ExpenseForm  from '@/components/app/ExpenseForm'
 import Categories   from '@/components/app/Categories'
 import Incomes      from '@/components/app/Incomes'
 import Goals        from '@/components/app/Goals'
-import Debts        from '@/components/app/Debts'
+import Debts         from '@/components/app/Debts'
+import PlannedEvents  from '@/components/app/PlannedEvents'
 import type { Expense } from '@/types'
 
 type Tab =
   | 'dashboard' | 'budget' | 'expenses' | 'recurring'
   | 'incomes'   | 'goals'  | 'projection' | 'debts' | 'categories'
+  | 'planned-events'
 
 const NAV_ITEMS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'dashboard',   label: 'Dashboard',     icon: <LayoutDashboard size={18} /> },
-  { id: 'budget',      label: 'Pres. vs Real', icon: <SlidersHorizontal size={18} /> },
-  { id: 'expenses',    label: 'Gastos',         icon: <Receipt size={18} /> },
-  { id: 'recurring',   label: 'Recurrentes',   icon: <RefreshCw size={18} /> },
-  { id: 'incomes',     label: 'Ingresos',       icon: <Wallet size={18} /> },
-  { id: 'goals',       label: 'Objetivos',      icon: <Target size={18} /> },
-  { id: 'projection',  label: 'Proyección',     icon: <BarChart2 size={18} /> },
-  { id: 'debts',       label: 'Deudas',         icon: <CreditCard size={18} /> },
-  { id: 'categories',  label: 'Categorías',     icon: <Tag size={18} /> },
+  { id: 'dashboard',       label: 'Dashboard',     icon: <LayoutDashboard size={18} /> },
+  { id: 'budget',          label: 'Pres. vs Real', icon: <SlidersHorizontal size={18} /> },
+  { id: 'expenses',        label: 'Gastos',         icon: <Receipt size={18} /> },
+  { id: 'recurring',       label: 'Recurrentes',   icon: <RefreshCw size={18} /> },
+  { id: 'incomes',         label: 'Ingresos',       icon: <Wallet size={18} /> },
+  { id: 'goals',           label: 'Objetivos',      icon: <Target size={18} /> },
+  { id: 'projection',      label: 'Proyección',     icon: <BarChart2 size={18} /> },
+  { id: 'debts',           label: 'Deudas',         icon: <CreditCard size={18} /> },
+  { id: 'planned-events',  label: 'Eventos',        icon: <Calendar size={18} /> },
+  { id: 'categories',      label: 'Categorías',     icon: <Tag size={18} /> },
 ]
 
 function MonthSelector() {
@@ -205,7 +208,12 @@ export default function AppPage() {
                       {activeTab === 'incomes'    && <Incomes />}
                       {activeTab === 'goals'      && <Goals />}
                       {activeTab === 'projection' && <Projection />}
-                      {activeTab === 'debts'      && <Debts />}
+                      {activeTab === 'debts'          && <Debts />}
+                      {activeTab === 'planned-events' && (
+                        <PlannedEvents
+                          onNavigateToExpenses={() => setActiveTab('expenses')}
+                        />
+                      )}
                       {activeTab === 'categories' && <Categories />}
                     </main>
                   </div>
