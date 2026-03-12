@@ -6,6 +6,7 @@ import { useCategories } from '@/context/CategoriesContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import PlannedEventForm from '@/components/app/PlannedEventForm'
 import type { PlannedEvent, PlannedEventOccurrence, Expense } from '@/types'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -168,15 +169,11 @@ function DeleteConfirmDialog({ event, computedCount, onConfirm, onCancel }: Dele
 
 interface PlannedEventsProps {
   onNavigateToExpenses?: () => void
-  onAddEvent?:           () => void                   // FEAT-007
-  onEditEvent?:          (id: string) => void         // FEAT-007
   onRegisterExpense?:    (eventId: string, date: string, estimatedAmount: number, category: string, title: string) => void  // FEAT-008
 }
 
 export default function PlannedEvents({
   onNavigateToExpenses,
-  onAddEvent,
-  onEditEvent,
   onRegisterExpense,
 }: PlannedEventsProps) {
   const { occurrences, instances, events, removeEvent, windowMonths, setWindowMonths } = usePlannedEvents()
@@ -184,6 +181,8 @@ export default function PlannedEvents({
   const { categoryMap } = useCategories()
 
   const [deleteCandidate, setDeleteCandidate] = useState<PlannedEvent | null>(null)
+  // null = cerrado, 'new' = crear, PlannedEvent = editar
+  const [eventForm, setEventForm] = useState<PlannedEvent | 'new' | null>(null)
 
   // Índice expense_id → Expense para enriquecer ocurrencias computadas
   const expenseById = useMemo(() => {
@@ -265,7 +264,7 @@ export default function PlannedEvents({
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={onAddEvent} className="gap-1" title="Disponible en próxima versión" disabled={!onAddEvent}>
+          <Button size="sm" onClick={() => setEventForm('new')} className="gap-1">
             <Plus size={15} /> Nuevo evento
           </Button>
         </div>
@@ -305,7 +304,7 @@ export default function PlannedEvents({
                     occ={occ}
                     expense={getExpenseForOcc(occ)}
                     categoryMap={categoryMap}
-                    onEdit={() => onEditEvent?.(occ.event_id)}
+                    onEdit={() => { const ev = events.find((e) => e.id === occ.event_id); if (ev) setEventForm(ev) }}
                     onDelete={() => handleDeleteClick(occ.event_id)}
                     onRegister={() => onRegisterExpense?.(occ.event_id, occ.date, occ.estimated_amount, occ.category, occ.title)}
                     onViewExpense={() => onNavigateToExpenses?.()}
@@ -315,6 +314,23 @@ export default function PlannedEvents({
             </Card>
           )
         })
+      )}
+
+      {/* Event form modal */}
+      {eventForm !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>{eventForm === 'new' ? 'Nuevo evento' : 'Editar evento'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PlannedEventForm
+                initial={eventForm === 'new' ? undefined : eventForm}
+                onClose={() => setEventForm(null)}
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Delete confirmation */}

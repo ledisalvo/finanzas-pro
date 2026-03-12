@@ -210,9 +210,7 @@ export default function AppPage() {
                       {activeTab === 'projection' && <Projection />}
                       {activeTab === 'debts'          && <Debts />}
                       {activeTab === 'planned-events' && (
-                        <PlannedEvents
-                          onNavigateToExpenses={() => setActiveTab('expenses')}
-                        />
+                        <PlannedEvents onNavigateToExpenses={() => setActiveTab('expenses')} />
                       )}
                       {activeTab === 'categories' && <Categories />}
                     </main>
