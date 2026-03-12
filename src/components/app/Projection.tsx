@@ -5,7 +5,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useIncomes } from '@/hooks/useIncomes'
 import { useRecurring } from '@/hooks/useRecurring'
-import { useGoals } from '@/hooks/useGoals'
+import { useBudgets } from '@/hooks/useBudgets'
 
 function formatCurrency(v: number) {
   return `$${v.toLocaleString('es-AR')}`
@@ -13,80 +13,129 @@ function formatCurrency(v: number) {
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
-function getNextMonths(count: number) {
-  const result = []
-  const now = new Date()
+/** Returns YYYY-MM strings for the next `count` months starting from the selected month */
+function getNextMonthKeys(fromMonth: string, count: number): string[] {
+  const [year, month] = fromMonth.split('-').map(Number)
+  const result: string[] = []
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    result.push({ label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, short: MONTH_NAMES[d.getMonth()] })
+    const d = new Date(year, month - 1 + i, 1)
+    result.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
   return result
+}
+
+function monthLabel(key: string) {
+  const [, m] = key.split('-').map(Number)
+  return MONTH_NAMES[m - 1]
+}
+
+/** YYYY-MM del mes actual real (independiente del selector de mes) */
+function todayMonthKey() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 export default function Projection() {
   const { data: incomes }   = useIncomes()
   const { data: recurring } = useRecurring()
-  const { data: goals }     = useGoals()
+  const { data: budgets }   = useBudgets()
 
-  const totalIngresos  = useMemo(() => incomes.reduce((s, i) => s + i.amount, 0), [incomes])
-  const totalFijos     = useMemo(() => recurring.reduce((s, r) => s + r.amount, 0), [recurring])
-  const totalObjetivos = useMemo(() => goals.reduce((s, g) => s + g.monthly_amount, 0), [goals])
-  const totalLibre     = totalIngresos - totalFijos - totalObjetivos
+  // Mes actual real — la proyección siempre parte de hoy
+  const currentMonth = useMemo(() => todayMonthKey(), [])
 
-  const months = useMemo(() => getNextMonths(6), [])
-
-  const chartData = useMemo(() => months.map(({ short }) => ({
-    mes:       short,
-    Fijos:     totalFijos,
-    Objetivos: totalObjetivos,
-    Libre:     Math.max(0, totalLibre),
-  })), [months, totalFijos, totalObjetivos, totalLibre])
-
-  const goalsWithTarget = useMemo(
-    () => goals.filter((g) => g.target_amount !== null && g.monthly_amount > 0),
-    [goals],
+  // Ingresos del mes actual como base de referencia
+  const baseIngresos = useMemo(
+    () => incomes.filter((i) => i.month === currentMonth).reduce((s, i) => s + i.amount, 0),
+    [incomes, currentMonth],
   )
+
+  // Gastos fijos mensuales (recurrentes)
+  const totalFijos = useMemo(() => recurring.reduce((s, r) => s + r.amount, 0), [recurring])
+
+  // Proyección para los próximos 6 meses desde hoy — no cambia con el selector
+  const monthKeys = useMemo(() => getNextMonthKeys(currentMonth, 6), [currentMonth])
+
+  const chartData = useMemo(() => monthKeys.map((key) => {
+    // Ingresos: use from DB if available for that month, otherwise use base
+    const ingresos = incomes.filter((i) => i.month === key).reduce((s, i) => s + i.amount, 0) || baseIngresos
+
+    // Presupuestado: sum of budgets for that month; fallback to current month budgets
+    const budgetedMonth = budgets.filter((b) => b.month === key)
+    const fallbackBudgets = budgets.filter((b) => b.month === currentMonth)
+    const presupuestado = (budgetedMonth.length > 0 ? budgetedMonth : fallbackBudgets)
+      .reduce((s, b) => s + b.amount, 0)
+
+    const libre = Math.max(0, ingresos - totalFijos - presupuestado)
+    const deficit = ingresos - totalFijos - presupuestado < 0
+      ? Math.abs(ingresos - totalFijos - presupuestado)
+      : 0
+
+    return {
+      mes:            monthLabel(key),
+      monthKey:       key,
+      Ingresos:       ingresos,
+      Fijos:          totalFijos,
+      Presupuestado:  presupuestado,
+      Libre:          libre,
+      deficit,
+      raw:            ingresos - totalFijos - presupuestado,
+    }
+  }), [monthKeys, incomes, budgets, baseIngresos, totalFijos, currentMonth])
 
   return (
     <div className="space-y-6">
-      {/* Balance mensual */}
+      {/* Resumen del mes seleccionado */}
       <Card>
         <CardHeader>
-          <CardTitle>Balance mensual proyectado</CardTitle>
+          <CardTitle>Proyección planificada — base {monthLabel(currentMonth)}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between items-center py-1 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">Ingresos</span>
-            <span className="font-semibold text-green-400">{formatCurrency(totalIngresos)}</span>
+            <span className="text-sm text-muted-foreground">Ingresos esperados</span>
+            <span className="font-semibold text-green-400">{formatCurrency(baseIngresos)}</span>
           </div>
           <div className="flex justify-between items-center py-1 border-b border-border/50">
             <span className="text-sm text-muted-foreground">− Gastos fijos (recurrentes)</span>
             <span className="font-medium text-destructive">−{formatCurrency(totalFijos)}</span>
           </div>
           <div className="flex justify-between items-center py-1 border-b border-border/50">
-            <span className="text-sm text-muted-foreground">− Aportes a objetivos</span>
-            <span className="font-medium text-yellow-400">−{formatCurrency(totalObjetivos)}</span>
-          </div>
-          <div className="flex justify-between items-center py-2">
-            <span className="font-semibold">= Disponible libre</span>
-            <span className={`text-xl font-bold ${totalLibre >= 0 ? 'text-primary' : 'text-destructive'}`}>
-              {formatCurrency(totalLibre)}
+            <span className="text-sm text-muted-foreground">− Presupuesto planificado</span>
+            <span className="font-medium text-yellow-400">
+              −{formatCurrency(budgets.filter((b) => b.month === currentMonth).reduce((s, b) => s + b.amount, 0))}
             </span>
           </div>
-          {totalLibre < 0 && (
-            <p className="text-xs text-destructive bg-destructive/10 rounded p-2">
-              ⚠️ Tus compromisos fijos superan tus ingresos. Revisá tus gastos o ajustá los objetivos.
-            </p>
-          )}
+          {(() => {
+            const planBudgets = budgets.filter((b) => b.month === currentMonth).reduce((s, b) => s + b.amount, 0)
+            const libre = baseIngresos - totalFijos - planBudgets
+            return (
+              <>
+                <div className="flex justify-between items-center py-2">
+                  <span className="font-semibold">= Disponible proyectado</span>
+                  <span className={`text-xl font-bold ${libre >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {formatCurrency(libre)}
+                  </span>
+                </div>
+                {libre < 0 && (
+                  <p className="text-xs text-destructive bg-destructive/10 rounded p-2">
+                    ⚠️ Tu presupuesto planificado supera tus ingresos. Ajustá los presupuestos por categoría.
+                  </p>
+                )}
+              </>
+            )
+          })()}
         </CardContent>
       </Card>
 
-      {/* Stacked bar — próximos 6 meses */}
+      {/* Gráfico de barras apiladas — 6 meses */}
       <Card>
         <CardHeader>
-          <CardTitle>Distribución mensual — próximos 6 meses</CardTitle>
+          <CardTitle>Distribución proyectada — próximos 6 meses</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            Fijos + Presupuestado + Disponible libre, usando los presupuestos cargados por categoría.
+            Los meses sin presupuesto usan los del mes actual como referencia.
+          </p>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
               <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 12 }} />
@@ -96,9 +145,9 @@ export default function Projection() {
                 formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
               />
               <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 13 }} />
-              <Bar dataKey="Fijos"     stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Objetivos" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Libre"     stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Fijos"         stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Presupuestado" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Libre"         stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -117,19 +166,19 @@ export default function Projection() {
                   <th className="py-2 text-left">Mes</th>
                   <th className="py-2 text-right text-green-400">Ingresos</th>
                   <th className="py-2 text-right text-destructive">Fijos</th>
-                  <th className="py-2 text-right text-yellow-400">Objetivos</th>
+                  <th className="py-2 text-right text-yellow-400">Presupuestado</th>
                   <th className="py-2 text-right text-primary">Libre</th>
                 </tr>
               </thead>
               <tbody>
-                {months.map(({ label }) => (
-                  <tr key={label} className="border-b border-border/50">
-                    <td className="py-2 font-medium">{label}</td>
-                    <td className="py-2 text-right text-green-400">{formatCurrency(totalIngresos)}</td>
-                    <td className="py-2 text-right text-destructive">−{formatCurrency(totalFijos)}</td>
-                    <td className="py-2 text-right text-yellow-400">−{formatCurrency(totalObjetivos)}</td>
-                    <td className={`py-2 text-right font-semibold ${totalLibre >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                      {formatCurrency(totalLibre)}
+                {chartData.map((row) => (
+                  <tr key={row.monthKey} className="border-b border-border/50">
+                    <td className="py-2 font-medium">{row.mes}</td>
+                    <td className="py-2 text-right text-green-400">{formatCurrency(row.Ingresos)}</td>
+                    <td className="py-2 text-right text-destructive">−{formatCurrency(row.Fijos)}</td>
+                    <td className="py-2 text-right text-yellow-400">−{formatCurrency(row.Presupuestado)}</td>
+                    <td className={`py-2 text-right font-semibold ${row.raw >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {formatCurrency(row.raw)}
                     </td>
                   </tr>
                 ))}
@@ -138,41 +187,6 @@ export default function Projection() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Estimación de metas */}
-      {goalsWithTarget.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Estimación de metas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {goalsWithTarget.map((goal) => {
-              const remaining = goal.target_amount! - goal.current_amount
-              const monthsLeft = remaining > 0 ? Math.ceil(remaining / goal.monthly_amount) : 0
-              const targetDate = new Date()
-              targetDate.setMonth(targetDate.getMonth() + monthsLeft)
-              const dateStr = `${MONTH_NAMES[targetDate.getMonth()]} ${targetDate.getFullYear()}`
-              return (
-                <div key={goal.id} className="flex items-center justify-between rounded-md px-3 py-2 bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <span>{goal.icon}</span>
-                    <span className="text-sm font-medium">{goal.name}</span>
-                  </div>
-                  <div className="text-right">
-                    {monthsLeft <= 0
-                      ? <span className="text-sm font-medium text-green-400">¡Meta alcanzada!</span>
-                      : <>
-                          <p className="text-sm font-medium">{dateStr}</p>
-                          <p className="text-xs text-muted-foreground">{monthsLeft} meses · faltan {formatCurrency(remaining)}</p>
-                        </>
-                    }
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

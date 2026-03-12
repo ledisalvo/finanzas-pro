@@ -42,8 +42,3 @@ supabase/schema.sql    tablas + RLS + índices
 - [x] supabase/schema.sql con RLS completo
 - [x] .env.example
 
-## Próxima sesión
-- Conectar hooks a Supabase (queries reales)
-- Lógica de proyección con promedios históricos
-- Implementar CRUD completo para gastos y presupuestos
-- Autenticación persistente con `onAuthStateChange`

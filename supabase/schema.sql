@@ -1,119 +1,92 @@
--- FinanzasPro — Supabase Schema
--- Run this in the Supabase SQL editor
-
--- ─── expenses ─────────────────────────────────────────────────────────────────
-create table if not exists expenses (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users(id) on delete cascade,
-  date        date not null,
-  category    text not null,
-  description text not null,
-  amount      numeric(12, 2) not null check (amount >= 0),
-  recurring   boolean not null default false,
-  created_at  timestamptz not null default now()
-);
-
-alter table expenses enable row level security;
-
-create policy "expenses: select own" on expenses
-  for select using (auth.uid() = user_id);
-
-create policy "expenses: insert own" on expenses
-  for insert with check (auth.uid() = user_id);
-
-create policy "expenses: update own" on expenses
-  for update using (auth.uid() = user_id);
-
-create policy "expenses: delete own" on expenses
-  for delete using (auth.uid() = user_id);
-
-create index if not exists expenses_user_date_idx on expenses (user_id, date);
-
--- ─── budgets ──────────────────────────────────────────────────────────────────
-create table if not exists budgets (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users(id) on delete cascade,
-  category    text not null,
-  amount      numeric(12, 2) not null check (amount >= 0),
-  month       text not null,            -- YYYY-MM
-  created_at  timestamptz not null default now(),
-  unique (user_id, category, month)
-);
-
-alter table budgets enable row level security;
-
-create policy "budgets: select own" on budgets
-  for select using (auth.uid() = user_id);
-
-create policy "budgets: insert own" on budgets
-  for insert with check (auth.uid() = user_id);
-
-create policy "budgets: update own" on budgets
-  for update using (auth.uid() = user_id);
-
-create policy "budgets: delete own" on budgets
-  for delete using (auth.uid() = user_id);
-
-create index if not exists budgets_user_month_idx on budgets (user_id, month);
-
 -- ─── recurring ────────────────────────────────────────────────────────────────
 create table if not exists recurring (
-  id           uuid primary key default gen_random_uuid(),
-  user_id      uuid not null references auth.users(id) on delete cascade,
-  description  text not null,
-  category     text not null,
-  amount       numeric(12, 2) not null check (amount >= 0),
-  day_of_month smallint not null check (day_of_month between 1 and 31),
-  created_at   timestamptz not null default now()
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references auth.users(id) on delete cascade,
+  description      text not null,
+  category         text not null,
+  amount           numeric(12, 2) not null check (amount >= 0),
+  day_of_month     smallint not null check (day_of_month between 1 and 31),
+  is_shared        boolean         not null default false,
+  shared_ratio     numeric(5,4)    not null default 0.5,
+  total_amount     numeric(12, 2),
+  update_type      text            not null default 'none' check (update_type in ('none', 'ipc')),
+  update_frequency smallint,
+  last_updated     date,
+  next_update_date date,
+  created_at       timestamptz not null default now()
 );
 
-alter table recurring enable row level security;
-
-create policy "recurring: select own" on recurring
-  for select using (auth.uid() = user_id);
-
-create policy "recurring: insert own" on recurring
-  for insert with check (auth.uid() = user_id);
-
-create policy "recurring: update own" on recurring
-  for update using (auth.uid() = user_id);
-
-create policy "recurring: delete own" on recurring
-  for delete using (auth.uid() = user_id);
-
--- ─── incomes ──────────────────────────────────────────────────────────────────
-create table if not exists incomes (
-  id           uuid primary key default gen_random_uuid(),
-  user_id      uuid not null references auth.users(id) on delete cascade,
-  description  text not null,
-  amount       numeric(12, 2) not null check (amount >= 0),
-  day_of_month smallint not null check (day_of_month between 1 and 31),
-  created_at   timestamptz not null default now()
+-- ─── debts ────────────────────────────────────────────────────────────────────
+create table if not exists debts (
+  id                 uuid primary key default gen_random_uuid(),
+  user_id            uuid not null references auth.users(id) on delete cascade,
+  name               text not null,
+  color              text not null default '#3b82f6',
+  debt_type          text not null default 'installments' check (debt_type in ('installments', 'open')),
+  total_amount       numeric(12,2) not null check (total_amount > 0),
+  installments       integer,
+  installment_amount numeric(12,2),
+  paid_amount        numeric(12,2) not null default 0 check (paid_amount >= 0),
+  status             text not null default 'active' check (status in ('active', 'paid')),
+  created_at         timestamptz not null default now()
 );
 
-alter table incomes enable row level security;
+alter table debts enable row level security;
+create policy "debts: select own" on debts for select using (auth.uid() = user_id);
+create policy "debts: insert own" on debts for insert with check (auth.uid() = user_id);
+create policy "debts: update own" on debts for update using (auth.uid() = user_id);
+create policy "debts: delete own" on debts for delete using (auth.uid() = user_id);
 
-create policy "incomes: select own" on incomes for select using (auth.uid() = user_id);
-create policy "incomes: insert own" on incomes for insert with check (auth.uid() = user_id);
-create policy "incomes: update own" on incomes for update using (auth.uid() = user_id);
-create policy "incomes: delete own" on incomes for delete using (auth.uid() = user_id);
-
--- ─── budget_goals ─────────────────────────────────────────────────────────────
-create table if not exists budget_goals (
-  id             uuid primary key default gen_random_uuid(),
-  user_id        uuid not null references auth.users(id) on delete cascade,
-  name           text not null,
-  icon           text not null default '🎯',
-  color          text not null default '#3b82f6',
-  monthly_amount numeric(12, 2) not null check (monthly_amount >= 0),
-  target_amount  numeric(12, 2) check (target_amount > 0),   -- null = sin meta fija
-  current_amount numeric(12, 2) not null default 0 check (current_amount >= 0),
-  created_at     timestamptz not null default now()
+-- ─── categories (custom, user-created) ────────────────────────────────────────
+create table if not exists categories (
+  id         text not null,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  label      text not null,
+  icon       text not null,
+  color      text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, id)
 );
 
-alter table budget_goals enable row level security;
+alter table categories enable row level security;
 
-create policy "budget_goals: select own" on budget_goals for select using (auth.uid() = user_id);
-create policy "budget_goals: insert own" on budget_goals for insert with check (auth.uid() = user_id);
-create policy "budget_goals: update own" on budget_goals for update using (auth.uid() = user_id);
-create policy "budget_goals: delete own" on budget_goals for delete using (auth.uid() = user_id);
+create policy "categories: select own" on categories for select using (auth.uid() = user_id);
+create policy "categories: insert own" on categories for insert with check (auth.uid() = user_id);
+create policy "categories: update own" on categories for update using (auth.uid() = user_id);
+create policy "categories: delete own" on categories for delete using (auth.uid() = user_id);
+
+-- ─── debts: add color + debt_type columns (migration for existing DBs) ──────────
+alter table debts
+  add column if not exists color     text not null default '#3b82f6',
+  add column if not exists debt_type text not null default 'installments';
+-- Opcional: eliminar columnas start_date / end_date si las tenés de la versión anterior
+-- alter table debts drop column if exists start_date;
+-- alter table debts drop column if exists end_date;
+
+-- ─── expenses: add debt payment columns (migration for existing DBs) ────────────
+alter table expenses
+  add column if not exists is_debt_payment boolean not null default false,
+  add column if not exists debt_id         uuid references debts(id);
+
+-- ─── expenses: add savings columns (migration for existing DBs) ─────────────
+alter table expenses
+  add column if not exists is_savings boolean not null default false,
+  add column if not exists goal_id    uuid references budget_goals(id);
+
+-- ─── categories: add description column (migration for existing DBs) ────────
+alter table categories
+  add column if not exists description text;
+
+-- ─── categories: add track_budget column (migration for existing DBs) ───────
+alter table categories
+  add column if not exists track_budget boolean not null default true;
+
+-- ─── recurring: add shared + IPC columns (migration for existing DBs) ─────────
+alter table recurring
+  add column if not exists is_shared        boolean         not null default false,
+  add column if not exists shared_ratio     numeric(5,4)    not null default 0.5,
+  add column if not exists total_amount     numeric(12, 2),
+  add column if not exists update_type      text            not null default 'none',
+  add column if not exists update_frequency smallint,
+  add column if not exists last_updated     date,
+  add column if not exists next_update_date date;

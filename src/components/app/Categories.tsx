@@ -3,16 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { useCategories } from '@/context/CategoriesContext'
 import { EmojiPicker } from '@/components/ui/emoji-picker'
-import type { Category } from '@/types'
+import { CATEGORIES as DEFAULT_CATEGORIES, type Category } from '@/types'
+
+const DEFAULT_IDS = new Set(DEFAULT_CATEGORIES.map((c) => c.id))
 
 const PRESET_COLORS = [
   '#f97316', '#3b82f6', '#8b5cf6', '#ef4444',
   '#eab308', '#22c55e', '#ec4899', '#14b8a6',
 ]
 
-const EMPTY_FORM = { label: '', icon: '', color: PRESET_COLORS[0] }
+const EMPTY_FORM = { label: '', icon: '', color: PRESET_COLORS[0], description: '' }
 type FormState = typeof EMPTY_FORM
 
 function CategoryForm({
@@ -78,6 +81,16 @@ function CategoryForm({
         </div>
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor="cat-desc">Descripción / hint <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+        <Input
+          id="cat-desc"
+          placeholder="Ej: Ropa, peluquería, gym, salud"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+      </div>
+
       {/* Preview */}
       <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
         <span className="text-lg">{form.icon || '?'}</span>
@@ -98,7 +111,7 @@ function CategoryForm({
 }
 
 export default function Categories() {
-  const { categories, add, update, remove } = useCategories()
+  const { categories, add, update, remove, toggleBudget } = useCategories()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
 
@@ -109,7 +122,12 @@ export default function Categories() {
 
   const handleEdit = (values: FormState) => {
     if (!editing) return
-    update(editing.id, values)
+    update(editing.id, {
+      label:       values.label,
+      icon:        values.icon,
+      color:       values.color,
+      description: values.description || undefined,
+    })
     setEditing(null)
   }
 
@@ -141,7 +159,7 @@ export default function Categories() {
                 <div key={cat.id} className="rounded-lg border border-primary/40 bg-muted/30 p-4">
                   <p className="text-sm font-medium mb-1">Editando: {cat.label}</p>
                   <CategoryForm
-                    initial={{ label: cat.label, icon: cat.icon, color: cat.color }}
+                    initial={{ label: cat.label, icon: cat.icon, color: cat.color, description: cat.description ?? '' }}
                     onSave={handleEdit}
                     onCancel={() => setEditing(null)}
                   />
@@ -149,6 +167,7 @@ export default function Categories() {
               )
             }
 
+            const isDefault = DEFAULT_IDS.has(cat.id)
             return (
               <div
                 key={cat.id}
@@ -162,8 +181,16 @@ export default function Categories() {
                     {cat.icon}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{cat.label}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{cat.id}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{cat.label}</p>
+                      {isDefault && (
+                        <Badge variant="secondary" className="text-xs">Por defecto</Badge>
+                      )}
+                    </div>
+                    {cat.description
+                      ? <p className="text-xs text-muted-foreground">{cat.description}</p>
+                      : <p className="text-xs text-muted-foreground font-mono">{cat.id}</p>
+                    }
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -171,20 +198,36 @@ export default function Categories() {
                     className="h-4 w-4 rounded-full"
                     style={{ backgroundColor: cat.color }}
                   />
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Toggle presupuesto (solo categorías custom) */}
+                  {!isDefault && (
                     <button
-                      onClick={() => { setEditing(cat); setShowForm(false) }}
-                      className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      onClick={() => toggleBudget(cat.id, !(cat.track_budget ?? true))}
+                      title={cat.track_budget !== false ? 'Visible en Presupuesto vs Real — clic para ocultar' : 'Oculta en Presupuesto vs Real — clic para mostrar'}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
+                        cat.track_budget !== false
+                          ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
                     >
-                      Editar
+                      {cat.track_budget !== false ? 'Presupuesto ✓' : 'Presupuesto —'}
                     </button>
-                    <button
-                      onClick={() => remove(cat.id)}
-                      className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
+                  )}
+                  {!isDefault && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => { setEditing(cat); setShowForm(false) }}
+                        className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => remove(cat.id)}
+                        className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )

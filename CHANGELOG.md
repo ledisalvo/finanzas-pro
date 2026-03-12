@@ -5,6 +5,49 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [0.9.0] — 2026-03-10
+
+### Agregado
+- `src/components/app/Debts.tsx` — tab "Deudas": CRUD de deudas en cuotas o abiertas, gráfico de evolución mensual, badge de estado activo/pagada, colores personalizables
+- `src/context/DebtsContext.tsx` + `src/hooks/useDebts.ts` — contexto Supabase-connected con `add`, `update`, `remove`, `markAsPaid`, `registerPayment`
+- `src/components/app/CsvImport.tsx` — importación de gastos desde CSV: parseo inteligente de fechas (DD/MM/YYYY, YYYY-MM-DD) y montos (separador de miles/decimales con punto o coma), preview con validación, carga masiva via `addMany`
+- `src/components/app/IpcAlertBanner.tsx` — banner de alertas IPC: detecta gastos recurrentes con actualización vencida, modal de confirmación con preview del nuevo monto, soporte de items compartidos
+- `Recurring.tsx` — soporte de gastos compartidos: campos `is_shared`, `shared_ratio`, `total_amount`; configuración de actualización por IPC (`update_type`, `update_frequency`); la lista muestra la parte del usuario y el monto total
+- `RecurringContext.tsx` — `overdueItems`: lista memoizada de recurrentes con actualización IPC vencida; `applyIpcUpdate(id, ipcPercent)`: recalcula monto y actualiza fechas de seguimiento
+
+### Modificado
+- `src/types/index.ts`:
+  - `Expense` — nuevos campos `is_debt_payment`, `debt_id`, `is_savings`, `goal_id`
+  - `Recurring` — nuevos campos `is_shared`, `shared_ratio`, `total_amount`, `update_type`, `update_frequency`, `last_updated`, `next_update_date`
+  - `Category` — nuevos campos opcionales `description` y `track_budget`
+  - `Income` — nuevo campo `month` (YYYY-MM) para asociar ingresos a un mes específico
+  - `Debt` — interfaz nueva con `debt_type: 'installments' | 'open'`
+  - `CATEGORIES` — renombrada "Comida" → "Supermercado", "Emergencias" → "Imprevistos"; agregados `description` y `track_budget` a cada categoría; "Servicios" marcada con `track_budget: false`
+- `ExpenseForm.tsx` — nuevos campos: marcar como pago de deuda (select de deuda activa), marcar como ahorro (select de objetivo); ambos campos opcionales y mutuamente excluyentes
+- `ExpenseList.tsx` — badges de "Pago deuda" y "Ahorro" en cada ítem; acciones de editar/eliminar rediseñadas; filtros expandidos
+- `BudgetVsReal.tsx` — filtra categorías con `track_budget: false` de la comparativa de presupuesto vs real
+- `Dashboard.tsx` — nueva sección "Deudas activas" con barras de progreso de pago; integra `IpcAlertBanner`
+- `Goals.tsx` — UI rediseñada con barra de progreso más detallada, estimación de meses, aporte mensual editable inline
+- `Incomes.tsx` — asociación de ingresos a mes específico; totales por mes
+- `Categories.tsx` — campos `description` y `track_budget` en formulario de creación/edición
+- `CategoriesContext.tsx` — sincroniza categorías base con las personalizadas del usuario; soporte de `description` y `track_budget`
+- `supabase/schema.sql` — tabla `debts` con RLS; columnas `is_debt_payment`/`debt_id` en `expenses`; columnas IPC/compartido en `recurring`; columna `month` en `incomes`; columnas `description`/`track_budget` en `categories`
+- `AppPage.tsx` — nueva tab "Deudas" con `DebtsProvider`; botón "Importar CSV" en tab Gastos
+
+---
+
+## [0.8.0] — 2026-03-05
+
+### Agregado
+- `src/context/MonthContext.tsx` — `MonthProvider` + `useMonth()`: estado global del mes seleccionado (YYYY-MM) con navegación `prev`/`next` y label formateado
+- `AppPage.tsx` — `MonthSelector` en el header (‹ Marzo 2026 ›); `MonthProvider` en el árbol de providers
+
+### Modificado
+- `Dashboard.tsx`, `BudgetVsReal.tsx`, `ExpenseList.tsx` — filtran expenses y budgets por el mes seleccionado en `MonthContext`
+- `Projection.tsx` — fecha inicial deja de ser hardcodeada, usa `new Date()` real
+
+---
+
 ## [0.7.0] — 2026-03-05
 
 ### Agregado

@@ -3,24 +3,98 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { useRecurring } from '@/hooks/useRecurring'
 import { useCategories } from '@/context/CategoriesContext'
 import { NewCategoryInline } from '@/components/app/NewCategoryInline'
+import { IpcAlertBanner } from '@/components/app/IpcAlertBanner'
 import type { Recurring } from '@/types'
 
 function formatCurrency(value: number) {
   return `$${value.toLocaleString('es-AR')}`
 }
 
+function formatMonth(dateStr: string) {
+  const [year, month] = dateStr.split('-')
+  return `${month}/${year}`
+}
+
+function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+        value ? 'bg-primary' : 'bg-muted-foreground/30'
+      }`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+          value ? 'translate-x-[18px]' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  )
+}
+
+// ─── Form state ───────────────────────────────────────────────────────────────
+
 const EMPTY_FORM = {
-  description:  '',
-  category:     'servicios',
-  amount:       '',
-  day_of_month: '',
+  description:      '',
+  category:         'servicios',
+  amount:           '',   // used when !is_shared
+  day_of_month:     '',
+  is_shared:        false,
+  total_amount:     '',   // used when is_shared
+  shared_ratio:     50,   // percentage 1–100
+  has_ipc:          false,
+  update_frequency: 6,
 }
 
 type FormState = typeof EMPTY_FORM
 
+function recurringToForm(item: Recurring): FormState {
+  return {
+    description:      item.description,
+    category:         item.category,
+    amount:           item.is_shared ? '' : String(item.amount),
+    day_of_month:     String(item.day_of_month),
+    is_shared:        item.is_shared,
+    total_amount:     item.total_amount != null ? String(item.total_amount) : '',
+    shared_ratio:     Math.round(item.shared_ratio * 100),
+    has_ipc:          item.update_type === 'ipc',
+    update_frequency: item.update_frequency ?? 6,
+  }
+}
+
+function formToPayload(values: FormState): Omit<Recurring, 'id' | 'user_id'> {
+  const isShared  = values.is_shared
+  const totalAmt  = isShared ? parseFloat(values.total_amount) : null
+  const ratio     = isShared ? values.shared_ratio / 100 : 1
+  const amount    = isShared ? (totalAmt! * ratio) : parseFloat(values.amount)
+  const hasIpc    = values.has_ipc
+
+  let nextUpdateDate: string | null = null
+  if (hasIpc) {
+    const d = new Date()
+    d.setMonth(d.getMonth() + values.update_frequency)
+    nextUpdateDate = d.toISOString().slice(0, 10)
+  }
+
+  return {
+    description:      values.description,
+    category:         values.category,
+    amount,
+    day_of_month:     parseInt(values.day_of_month, 10),
+    is_shared:        isShared,
+    shared_ratio:     ratio,
+    total_amount:     totalAmt,
+    update_type:      hasIpc ? 'ipc' : 'none',
+    update_frequency: hasIpc ? values.update_frequency : null,
+    last_updated:     null,
+    next_update_date: nextUpdateDate,
+  }
+}
 
 // ─── Recurring expense form ───────────────────────────────────────────────────
 
@@ -34,7 +108,7 @@ function RecurringForm({
   onCancel: () => void
 }) {
   const { categories } = useCategories()
-  const [form, setForm] = useState<FormState>(initial ?? EMPTY_FORM)
+  const [form, setForm]           = useState<FormState>(initial ?? EMPTY_FORM)
   const [showNewCat, setShowNewCat] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,6 +120,11 @@ function RecurringForm({
     setForm((f) => ({ ...f, category: newId }))
     setShowNewCat(false)
   }
+
+  const myPart =
+    form.is_shared && form.total_amount && parseFloat(form.total_amount) > 0
+      ? parseFloat(form.total_amount) * (form.shared_ratio / 100)
+      : null
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -61,19 +140,21 @@ function RecurringForm({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="amount">Monto mensual</Label>
-          <Input
-            id="amount"
-            type="number"
-            min={0}
-            step={0.01}
-            placeholder="0.00"
-            value={form.amount}
-            onChange={(e) => setForm({ ...form, amount: e.target.value })}
-            required
-          />
-        </div>
+        {!form.is_shared && (
+          <div className="space-y-1.5">
+            <Label htmlFor="amount">Monto mensual</Label>
+            <Input
+              id="amount"
+              type="number"
+              min={0}
+              step={0.01}
+              placeholder="0.00"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              required
+            />
+          </div>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -130,6 +211,92 @@ function RecurringForm({
         )}
       </div>
 
+      {/* Shared section */}
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">¿Es un gasto compartido?</Label>
+          <Toggle
+            value={form.is_shared}
+            onChange={(v) => setForm({ ...form, is_shared: v, amount: v ? '' : form.amount })}
+          />
+        </div>
+
+        {form.is_shared && (
+          <div className="space-y-3 pt-1">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="total_amount">Monto total</Label>
+                <Input
+                  id="total_amount"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={form.total_amount}
+                  onChange={(e) => setForm({ ...form, total_amount: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="shared_ratio">Mi porcentaje (%)</Label>
+                <Input
+                  id="shared_ratio"
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={form.shared_ratio}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      shared_ratio: Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 50)),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            {myPart !== null && (
+              <p className="text-sm font-medium text-primary">
+                Tu parte: {formatCurrency(myPart)}
+              </p>
+            )}
+
+          </div>
+        )}
+      </div>
+
+      {/* IPC section — independent of shared */}
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">¿Se actualiza por IPC?</Label>
+          <Toggle
+            value={form.has_ipc}
+            onChange={(v) => setForm({ ...form, has_ipc: v })}
+          />
+        </div>
+
+        {form.has_ipc && (
+          <div className="space-y-1.5">
+            <Label htmlFor="update_frequency">Frecuencia de actualización</Label>
+            <select
+              id="update_frequency"
+              value={form.update_frequency}
+              onChange={(e) =>
+                setForm({ ...form, update_frequency: parseInt(e.target.value, 10) })
+              }
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {[1, 2, 3, 6, 12].map((n) => (
+                <option key={n} value={n}>
+                  Cada {n} {n === 1 ? 'mes' : 'meses'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancelar
@@ -142,14 +309,16 @@ function RecurringForm({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function Recurring() {
+export default function RecurringScreen() {
   const { data: recurring, add, update, remove } = useRecurring()
   const { categoryMap } = useCategories()
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<Recurring | null>(null)
+  const [editing, setEditing]   = useState<Recurring | null>(null)
+
+  const today = new Date().toISOString().slice(0, 10)
 
   const sorted = useMemo(
-    () => [...recurring].sort((a, b) => a.day_of_month - b.day_of_month),
+    () => [...recurring].sort((a, b) => b.amount - a.amount),
     [recurring],
   )
 
@@ -159,28 +328,21 @@ export default function Recurring() {
   )
 
   const handleAdd = (values: FormState) => {
-    add({
-      description:  values.description,
-      category:     values.category,
-      amount:       parseFloat(values.amount),
-      day_of_month: parseInt(values.day_of_month, 10),
-    })
+    add(formToPayload(values))
     setShowForm(false)
   }
 
   const handleEdit = (values: FormState) => {
     if (!editing) return
-    update(editing.id, {
-      description:  values.description,
-      category:     values.category,
-      amount:       parseFloat(values.amount),
-      day_of_month: parseInt(values.day_of_month, 10),
-    })
+    update(editing.id, formToPayload(values))
     setEditing(null)
   }
 
   return (
     <div className="space-y-6">
+      {/* IPC alert banner */}
+      <IpcAlertBanner />
+
       {/* KPI */}
       <Card>
         <CardHeader className="pb-2">
@@ -210,20 +372,19 @@ export default function Recurring() {
           )}
 
           {sorted.map((item) => {
-            const cat = categoryMap[item.category]
+            const cat      = categoryMap[item.category]
             const isEditing = editing?.id === item.id
+            const isOverdue =
+              item.update_type === 'ipc' &&
+              item.next_update_date != null &&
+              item.next_update_date <= today
 
             if (isEditing) {
               return (
                 <div key={item.id} className="rounded-lg border border-primary/40 bg-muted/30 p-4">
                   <p className="text-sm font-medium mb-2">Editando: {item.description}</p>
                   <RecurringForm
-                    initial={{
-                      description:  item.description,
-                      category:     item.category,
-                      amount:       String(item.amount),
-                      day_of_month: String(item.day_of_month),
-                    }}
+                    initial={recurringToForm(item)}
                     onSave={handleEdit}
                     onCancel={() => setEditing(null)}
                   />
@@ -241,14 +402,38 @@ export default function Recurring() {
                     {cat?.icon}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{item.description}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium">{item.description}</p>
+                      {item.is_shared && (
+                        <Badge variant="secondary" className="text-xs">
+                          Compartido · {Math.round(item.shared_ratio * 100)}%
+                        </Badge>
+                      )}
+                      {isOverdue && (
+                        <Badge variant="destructive" className="text-xs">
+                          ⚠ Actualizar
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {cat?.label} · Día {item.day_of_month} de cada mes
+                      {item.update_type === 'ipc' && item.next_update_date && !isOverdue && (
+                        <span className="ml-1">
+                          · Próx. actualización: {formatMonth(item.next_update_date)}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <p className="font-semibold">{formatCurrency(item.amount)}</p>
+                  <div className="text-right">
+                    <p className="font-semibold">{formatCurrency(item.amount)}</p>
+                    {item.is_shared && item.total_amount != null && (
+                      <p className="text-xs text-muted-foreground">
+                        de {formatCurrency(item.total_amount)}
+                      </p>
+                    )}
+                  </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => { setEditing(item); setShowForm(false) }}

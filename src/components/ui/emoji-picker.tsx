@@ -41,6 +41,10 @@ const EMOJI_GROUPS = [
     label: 'Educación',
     emojis: ['🎓', '✏️', '🏫', '📝', '🖊️', '🔬', '🗺️', '📐'],
   },
+  {
+    label: 'Mascotas y familia',
+    emojis: ['🐶', '🐱', '🐾', '🦴', '🐠', '🐹', '👶', '🧒', '👦', '👧', '🍼', '🧸', '🪀', '🎠'],
+  },
 ]
 
 interface EmojiPickerProps {

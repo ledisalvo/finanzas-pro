@@ -17,11 +17,11 @@ interface NewCategoryInlineProps {
 
 export function NewCategoryInline({ onCreated, onCancel }: NewCategoryInlineProps) {
   const { add } = useCategories()
-  const [form, setForm] = useState({ label: '', icon: '', color: PRESET_COLORS[0] })
+  const [form, setForm] = useState({ label: '', icon: '', color: PRESET_COLORS[0], description: '' })
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.label || !form.icon) return
-    const newId = add(form)
+    const newId = await add(form)
     onCreated(newId)
   }
 
@@ -46,6 +46,16 @@ export function NewCategoryInline({ onCreated, onCancel }: NewCategoryInlineProp
             onChange={(emoji) => setForm({ ...form, icon: emoji })}
           />
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Descripción <span className="text-muted-foreground">(opcional)</span></Label>
+        <Input
+          placeholder="Ej: Salud, farmacia, médico"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          className="h-8 text-xs"
+        />
       </div>
 
       <div className="space-y-1">

@@ -4,35 +4,49 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    /* Body ligeramente más oscuro que las cards, como Paces pero en dark */
+    --background: 222 30% 9%;
+    --foreground: 210 30% 92%;
 
-    --card: 222 47% 14%;
-    --card-foreground: 210 40% 98%;
+    /* Cards: un tono más claro para destacar del fondo */
+    --card: 222 28% 13%;
+    --card-foreground: 210 30% 92%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 222 28% 13%;
+    --popover-foreground: 210 30% 92%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
+    /* Azul Paces: #236dc9 ≈ hsl(213, 70%, 46%) — lo llevamos a dark-friendly */
+    --primary: 213 70% 55%;
+    --primary-foreground: 222 30% 9%;
 
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 222 20% 18%;
+    --secondary-foreground: 210 30% 85%;
 
-    --muted: 217 32% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 222 20% 17%;
+    --muted-foreground: 215 15% 55%;
 
-    --accent: 217 32% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 222 20% 20%;
+    --accent-foreground: 210 30% 92%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    /* Success, warning, danger — igual que Paces */
+    --success: 166 97% 37%;
+    --warning: 38 94% 65%;
+    --danger: 348 91% 65%;
 
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
-    --ring: 217 91% 60%;
+    --destructive: 348 72% 51%;
+    --destructive-foreground: 210 30% 92%;
 
-    --radius: 0.5rem;
+    /* Borders sutiles, casi invisibles — Paces usa borderless cards */
+    --border: 222 20% 20%;
+    --input: 222 20% 18%;
+    --ring: 213 70% 55%;
+
+    /* Más cuadrado, como Paces (.3rem) */
+    --radius: 0.35rem;
+
+    /* Sombra tipo Paces adaptada a dark */
+    --shadow-card: 0 1px 6px rgba(0, 0, 0, 0.35), 0 0 1px rgba(0, 0, 0, 0.2);
+    --shadow-header: 0 1px 4px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -42,8 +56,15 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: 'Nunito', system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-size: 0.875rem;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Aplicar sombra a todas las cards (sin borde visible) */
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+    border-color: transparent;
   }
 }

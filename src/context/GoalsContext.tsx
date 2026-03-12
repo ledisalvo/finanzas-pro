@@ -7,9 +7,10 @@ interface GoalsContextValue {
   data:    BudgetGoal[]
   loading: boolean
   error:   Error | null
-  add:    (item: Omit<BudgetGoal, 'id' | 'user_id'>) => Promise<void>
-  update: (id: string, changes: Partial<Omit<BudgetGoal, 'id' | 'user_id'>>) => Promise<void>
-  remove: (id: string) => Promise<void>
+  add:             (item: Omit<BudgetGoal, 'id' | 'user_id'>) => Promise<void>
+  update:          (id: string, changes: Partial<Omit<BudgetGoal, 'id' | 'user_id'>>) => Promise<void>
+  remove:          (id: string) => Promise<void>
+  addContribution: (goalId: string, amount: number) => Promise<void>
 }
 
 const GoalsContext = createContext<GoalsContextValue | null>(null)
@@ -76,8 +77,34 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function addContribution(goalId: string, amount: number) {
+    let newAmount: number | undefined
+    let oldAmount: number | undefined
+
+    setData((prev) => {
+      const goal = prev.find((g) => g.id === goalId)
+      if (!goal) return prev
+      oldAmount = goal.current_amount
+      newAmount = goal.current_amount + amount
+      return prev.map((g) => (g.id === goalId ? { ...g, current_amount: newAmount! } : g))
+    })
+
+    if (newAmount === undefined) return
+
+    const { error: err } = await supabase
+      .from('budget_goals')
+      .update({ current_amount: newAmount })
+      .eq('id', goalId)
+      .eq('user_id', userId)
+
+    if (err) {
+      setData((prev) => prev.map((g) => (g.id === goalId ? { ...g, current_amount: oldAmount! } : g)))
+      setError(new Error(err.message))
+    }
+  }
+
   return (
-    <GoalsContext.Provider value={{ data, loading, error, add, update, remove }}>
+    <GoalsContext.Provider value={{ data, loading, error, add, update, remove, addContribution }}>
       {children}
     </GoalsContext.Provider>
   )
