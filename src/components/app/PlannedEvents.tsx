@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import PlannedEventForm from '@/components/app/PlannedEventForm'
+import ExpenseForm      from '@/components/app/ExpenseForm'
 import type { PlannedEvent, PlannedEventOccurrence, Expense } from '@/types'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -167,15 +168,19 @@ function DeleteConfirmDialog({ event, computedCount, onConfirm, onCancel }: Dele
 
 // ─── PlannedEvents ─────────────────────────────────────────────────────────────
 
-interface PlannedEventsProps {
-  onNavigateToExpenses?: () => void
-  onRegisterExpense?:    (eventId: string, date: string, estimatedAmount: number, category: string, title: string) => void  // FEAT-008
+interface RegisterFormData {
+  eventId:         string
+  instanceDate:    string
+  estimatedAmount: number
+  category:        string
+  title:           string
 }
 
-export default function PlannedEvents({
-  onNavigateToExpenses,
-  onRegisterExpense,
-}: PlannedEventsProps) {
+interface PlannedEventsProps {
+  onNavigateToExpenses?: () => void
+}
+
+export default function PlannedEvents({ onNavigateToExpenses }: PlannedEventsProps) {
   const { occurrences, instances, events, removeEvent, windowMonths, setWindowMonths } = usePlannedEvents()
   const { data: expenses } = useExpenses()
   const { categoryMap } = useCategories()
@@ -183,6 +188,8 @@ export default function PlannedEvents({
   const [deleteCandidate, setDeleteCandidate] = useState<PlannedEvent | null>(null)
   // null = cerrado, 'new' = crear, PlannedEvent = editar
   const [eventForm, setEventForm] = useState<PlannedEvent | 'new' | null>(null)
+  // datos para el modal de registrar gasto
+  const [registerForm, setRegisterForm] = useState<RegisterFormData | null>(null)
 
   // Índice expense_id → Expense para enriquecer ocurrencias computadas
   const expenseById = useMemo(() => {
@@ -306,7 +313,7 @@ export default function PlannedEvents({
                     categoryMap={categoryMap}
                     onEdit={() => { const ev = events.find((e) => e.id === occ.event_id); if (ev) setEventForm(ev) }}
                     onDelete={() => handleDeleteClick(occ.event_id)}
-                    onRegister={() => onRegisterExpense?.(occ.event_id, occ.date, occ.estimated_amount, occ.category, occ.title)}
+                    onRegister={() => setRegisterForm({ eventId: occ.event_id, instanceDate: occ.date, estimatedAmount: occ.estimated_amount, category: occ.category, title: occ.title })}
                     onViewExpense={() => onNavigateToExpenses?.()}
                   />
                 ))}
@@ -314,6 +321,30 @@ export default function PlannedEvents({
             </Card>
           )
         })
+      )}
+
+      {/* Register expense modal */}
+      {registerForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>Registrar gasto — {registerForm.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ExpenseForm
+                prefill={{
+                  title:        registerForm.title,
+                  category:     registerForm.category,
+                  date:         registerForm.instanceDate,
+                  amount:       registerForm.estimatedAmount,
+                  eventId:      registerForm.eventId,
+                  instanceDate: registerForm.instanceDate,
+                }}
+                onClose={() => setRegisterForm(null)}
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Event form modal */}
