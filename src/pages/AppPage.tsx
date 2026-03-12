@@ -9,7 +9,8 @@ import { IncomesProvider }    from '@/context/IncomesContext'
 import { GoalsProvider }      from '@/context/GoalsContext'
 import { RecurringProvider }  from '@/context/RecurringContext'
 import { BudgetsProvider }    from '@/context/BudgetsContext'
-import { DebtsProvider }      from '@/context/DebtsContext'
+import { DebtsProvider }          from '@/context/DebtsContext'
+import { PlannedEventsProvider }  from '@/context/PlannedEventsContext'
 import {
   LayoutDashboard, SlidersHorizontal, Receipt, RefreshCw,
   TrendingUp, Target, BarChart2, CreditCard, Tag,
@@ -96,6 +97,7 @@ export default function AppPage() {
             <IncomesProvider>
               <GoalsProvider>
               <DebtsProvider>
+              <PlannedEventsProvider>
                 <div className="min-h-screen flex flex-col">
 
                   {/* ── Top header ── */}
@@ -208,6 +210,7 @@ export default function AppPage() {
                     </main>
                   </div>
                 </div>
+              </PlannedEventsProvider>
               </DebtsProvider>
               </GoalsProvider>
             </IncomesProvider>

@@ -75,6 +75,44 @@ export interface BudgetGoal {
   current_amount: number        // acumulado actual (manual por ahora)
 }
 
+// ─── Planned Events ───────────────────────────────────────────────────────────
+
+export interface PlannedEvent {
+  id: string
+  user_id: string
+  title: string
+  month: number           // 1–12
+  day: number             // 1–31
+  estimated_amount: number
+  category: string
+  notes: string | null
+  is_recurring: boolean
+  created_at: string
+}
+
+export interface PlannedEventInstance {
+  id: string
+  user_id: string
+  event_id: string
+  date: string            // YYYY-MM-DD
+  estimated_amount: number // snapshot al momento de computar
+  expense_id: string | null
+  created_at: string
+}
+
+// Vista enriquecida calculada en el hook — no existe en la DB
+export interface PlannedEventOccurrence {
+  event_id: string
+  title: string
+  category: string
+  notes: string | null
+  is_recurring: boolean
+  date: string            // YYYY-MM-DD — fecha exacta resuelta para el año que corresponde
+  estimated_amount: number
+  instance: PlannedEventInstance | null  // null = ocurrencia virtual todavía no computada
+  expense: Expense | null               // gasto real si ya fue computado
+}
+
 // ─── Category ─────────────────────────────────────────────────────────────────
 
 export interface Category {
