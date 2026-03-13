@@ -6,6 +6,7 @@ import { useExpenses } from '@/hooks/useExpenses'
 import { useDebts } from '@/hooks/useDebts'
 import { useGoals } from '@/hooks/useGoals'
 import { useCategories } from '@/context/CategoriesContext'
+import { usePlannedEvents } from '@/hooks/usePlannedEvents'
 import { NewCategoryInline } from '@/components/app/NewCategoryInline'
 import type { Expense } from '@/types'
 
@@ -15,26 +16,38 @@ function formatCurrency(value: number) {
 
 type ExpenseType = 'normal' | 'debt_payment' | 'savings'
 
-interface ExpenseFormProps {
-  initial?: Expense
-  onClose?: () => void
+interface PrefillData {
+  title?:          string
+  category?:       string
+  date?:           string
+  amount?:         number   // estimated_amount del template (punto de partida)
+  eventId?:        string   // para vincular la instancia al confirmar
+  instanceDate?:   string   // fecha de la ocurrencia (puede diferir de la fecha del gasto)
 }
 
-export default function ExpenseForm({ initial, onClose }: ExpenseFormProps) {
+interface ExpenseFormProps {
+  initial?:  Expense
+  prefill?:  PrefillData
+  onClose?:  () => void
+}
+
+export default function ExpenseForm({ initial, prefill, onClose }: ExpenseFormProps) {
   const { add, update }                       = useExpenses()
   const { data: debts, addPayment }           = useDebts()
   const { data: goals, addContribution }      = useGoals()
   const { categories }                        = useCategories()
+  const { linkExpense }                       = usePlannedEvents()
 
   const initialExpenseType: ExpenseType =
     initial?.is_savings     ? 'savings'      :
     initial?.is_debt_payment ? 'debt_payment' : 'normal'
 
   const [form, setForm] = useState({
-    date:         initial?.date        ?? new Date().toISOString().slice(0, 10),
-    category:     initial?.category    ?? categories[0]?.id ?? '',
-    description:  initial?.description ?? '',
-    amount:       initial?.amount      != null ? String(initial.amount) : '',
+    date:         initial?.date        ?? prefill?.date     ?? new Date().toISOString().slice(0, 10),
+    category:     initial?.category    ?? prefill?.category ?? categories[0]?.id ?? '',
+    description:  initial?.description ?? prefill?.title    ?? '',
+    amount:       initial?.amount      != null ? String(initial.amount)  :
+                  prefill?.amount      != null ? String(prefill.amount)  : '',
     recurring:    initial?.recurring   ?? false,
     expense_type: initialExpenseType,
     debt_id:      initial?.debt_id     ?? '',
@@ -85,12 +98,16 @@ export default function ExpenseForm({ initial, onClose }: ExpenseFormProps) {
         await addContribution(form.goal_id, parseFloat(form.amount))
       }
     } else {
-      await add(payload)
+      const newId = await add(payload)
       if (isDebtPayment && form.debt_id) {
         await addPayment(form.debt_id, parseFloat(form.amount))
       }
       if (isSavings && form.goal_id) {
         await addContribution(form.goal_id, parseFloat(form.amount))
+      }
+      // Vincular al evento planificado si corresponde
+      if (newId && prefill?.eventId && prefill?.instanceDate) {
+        await linkExpense(prefill.eventId, prefill.instanceDate, newId, prefill.amount ?? parseFloat(form.amount))
       }
     }
     onClose?.()
@@ -128,6 +145,11 @@ export default function ExpenseForm({ initial, onClose }: ExpenseFormProps) {
             onChange={(e) => setForm({ ...form, amount: e.target.value })}
             required
           />
+          {prefill?.amount != null && (
+            <p className="text-xs text-muted-foreground">
+              Estimado original: <span className="text-foreground font-medium">${prefill.amount.toLocaleString('es-AR')}</span>
+            </p>
+          )}
         </div>
       </div>
 

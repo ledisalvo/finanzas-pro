@@ -7,7 +7,7 @@ interface ExpensesContextValue {
   data:    Expense[]
   loading: boolean
   error:   Error | null
-  add:     (item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) => Promise<void>
+  add:     (item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) => Promise<string | null>
   addMany: (items: Omit<Expense, 'id' | 'user_id' | 'created_at'>[]) => Promise<void>
   update:  (id: string, changes: Partial<Omit<Expense, 'id' | 'user_id' | 'created_at'>>) => Promise<void>
   remove:  (id: string) => Promise<void>
@@ -37,7 +37,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       })
   }, [userId])
 
-  async function add(item: Omit<Expense, 'id' | 'user_id' | 'created_at'>) {
+  async function add(item: Omit<Expense, 'id' | 'user_id' | 'created_at'>): Promise<string | null> {
     const optimistic: Expense = {
       ...item,
       id: crypto.randomUUID(),
@@ -55,8 +55,10 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
     if (err) {
       setData((prev) => prev.filter((e) => e.id !== optimistic.id))
       setError(new Error(err.message))
+      return null
     } else {
       setData((prev) => prev.map((e) => (e.id === optimistic.id ? inserted : e)))
+      return inserted.id
     }
   }
 

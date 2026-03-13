@@ -90,3 +90,44 @@ alter table recurring
   add column if not exists update_frequency smallint,
   add column if not exists last_updated     date,
   add column if not exists next_update_date date;
+
+-- ─── planned_events (templates) ───────────────────────────────────────────────
+create table if not exists planned_events (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references auth.users(id) on delete cascade,
+  title            text not null,
+  month            smallint not null check (month between 1 and 12),
+  day              smallint not null check (day between 1 and 31),
+  estimated_amount numeric(12,2) not null check (estimated_amount >= 0),
+  category         text not null,
+  notes            text,
+  is_recurring     boolean not null default false,
+  created_at       timestamptz not null default now()
+);
+
+alter table planned_events enable row level security;
+create policy "planned_events: select own" on planned_events for select using (auth.uid() = user_id);
+create policy "planned_events: insert own" on planned_events for insert with check (auth.uid() = user_id);
+create policy "planned_events: update own" on planned_events for update using (auth.uid() = user_id);
+create policy "planned_events: delete own" on planned_events for delete using (auth.uid() = user_id);
+
+-- ─── planned_event_instances ──────────────────────────────────────────────────
+-- Se crea solo cuando el usuario registra el gasto real asociado al evento.
+-- ON DELETE SET NULL en expense_id: si el gasto se borra, la instancia vuelve a pendiente.
+-- ON DELETE CASCADE en event_id: si se borra el template, se borran todas sus instancias.
+create table if not exists planned_event_instances (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references auth.users(id) on delete cascade,
+  event_id         uuid not null references planned_events(id) on delete cascade,
+  date             date not null,
+  estimated_amount numeric(12,2) not null,
+  expense_id       uuid references expenses(id) on delete set null,
+  created_at       timestamptz not null default now(),
+  unique (event_id, date)
+);
+
+alter table planned_event_instances enable row level security;
+create policy "planned_event_instances: select own" on planned_event_instances for select using (auth.uid() = user_id);
+create policy "planned_event_instances: insert own" on planned_event_instances for insert with check (auth.uid() = user_id);
+create policy "planned_event_instances: update own" on planned_event_instances for update using (auth.uid() = user_id);
+create policy "planned_event_instances: delete own" on planned_event_instances for delete using (auth.uid() = user_id);
